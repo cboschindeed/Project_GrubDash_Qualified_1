@@ -29,7 +29,7 @@ function create(req, res) {
     id: nextId(),
     deliverTo,
     mobileNumber,
-    status,
+    status: "pending",
     dishes,
   };
 
@@ -115,7 +115,7 @@ function orderExists(req, res, next) {
   }
 
   next({ status: 404, message: `Order does not exist: ${orderId}.` });
-} // dishExists
+} // orderExists
 
 function read(req, res) {
   const order = res.locals.order;
@@ -148,21 +148,24 @@ function update(req, res) {
   res.json({ data: order });
 } // update
 
-function destroy(req, res) {
-  const { data: { status } = {} } = req.body;
+function destroy(req, res, next) {
+  const orderId = res.locals.order.id;
+  const status = res.locals.order.status;
 
-  if (status === "pending") {
+  if (status !== "pending") {
     return next({
       status: 400,
       message: "An order cannot be deleted unless it is pending.",
     });
   }
 
-  const { orderId } = req.params;
   const index = orders.findIndex((order) => order.id == orderId);
 
   // `splice()` returns an array of the deleted elements, even if it is one element
-  const deletedPastes = pastes.splice(index, 1);
+  if (index > -1) {
+    orders.splice(index, 1);
+  }
+
   res.sendStatus(204);
 }
 
@@ -171,11 +174,11 @@ module.exports = {
   create: [
     bodyDataHas("deliverTo"),
     bodyDataHas("mobileNumber"),
-    bodyDataHas("status"),
+    // bodyDataHas("status"),
     bodyDataHas("dishes"),
     validatePropertyNotEmptyString("deliverTo"),
     validatePropertyNotEmptyString("mobileNumber"),
-    statusPropertyIsValid,
+    // statusPropertyIsValid,
     dishesPropertyIsValid,
     dishQuantityPropertyIsValid,
     create,
@@ -195,5 +198,5 @@ module.exports = {
     dishQuantityPropertyIsValid,
     update,
   ],
-  delete: [orderExists, statusPropertyIsValid, destroy],
+  delete: [orderExists, destroy],
 };
